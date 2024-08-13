@@ -1,0 +1,111 @@
+# Job configurations for {{.project_name}}
+#
+# To Lean more configuration options/mappings visit
+# https://learn.microsoft.com/en-us/azure/databricks/dev-tools/bundles/settings#bundle-syntax-mappings
+# https://docs.databricks.com/en/dev-tools/bundles/python-wheel.html#language-setuptools
+
+resources:
+  jobs:
+    {{.project_name}}_example_unit_test:
+      name: {{.project_name}} Example Unit Test Job
+      tasks:
+        - task_key: example_unit_test
+          existing_cluster_id: ${var.databricks_cluster_id}
+          python_wheel_task:
+            package_name: {{.project_name}}_whl
+            entry_point: test_suit
+            parameters: [
+              "--confcutdir",
+              "/Workspace${workspace.file_path}/tests",
+              "--test_path",
+              "/Workspace${workspace.file_path}/tests/unit/databricks/test_examples.py",
+              "--csv_path",
+              "${var.csv_holdings_path}"
+            ]
+          libraries:
+            - whl: ../dist/*.whl
+          {{if ne .distribution_list ""}}
+          email_notifications:
+            on_failure:
+              - {{.distribution_list}}
+            notification_settings:
+              no_alert_for_skipped_runs: true
+              no_alert_for_canceled_runs: true
+          {{end}}
+    
+    {{.project_name}}_example_integration_test:
+      name: {{.project_name}} Example Integration Test Job
+      tasks:
+        - task_key: test_integration_output
+          existing_cluster_id: ${var.databricks_cluster_id}
+          python_wheel_task:
+            package_name: {{.project_name}}_whl
+            entry_point: test_suit
+            parameters: [
+              "--confcutdir",
+              "/Workspace${workspace.file_path}/tests",
+              "--test_path",
+              "/Workspace${workspace.file_path}/tests/integration/test_output.py",
+              "--csv_path",
+              "${var.csv_weather_path}"
+            ]
+          libraries:
+            - whl: ../dist/*.whl
+          {{if ne .distribution_list ""}}
+          email_notifications:
+            on_failure:
+              - {{.distribution_list}}
+            notification_settings:
+              no_alert_for_skipped_runs: true
+              no_alert_for_canceled_runs: true
+          {{end}}
+        
+    {{.project_name}}_example_output:
+      name: {{.project_name}} Example Output Job
+      tasks:
+        - task_key: example_output
+          existing_cluster_id: ${var.databricks_cluster_id}
+          python_wheel_task:
+            package_name: {{.project_name}}_whl
+            entry_point: example_output
+            parameters: [
+              "--csv_path",
+              "${var.csv_weather_path}",
+              "--output_path",
+              "${var.output_path}"
+            ]
+          libraries:
+            - whl: ../dist/*.whl
+          {{if ne .distribution_list ""}}
+          email_notifications:
+            on_failure:
+              - {{.distribution_list}}
+            notification_settings:
+              no_alert_for_skipped_runs: true
+              no_alert_for_canceled_runs: true
+          {{end}}
+    
+    {{.project_name}}_example_output_uc:
+      name: {{.project_name}} Example Unity Catalog Output Job
+      tasks:
+        - task_key: example_output_uc
+          existing_cluster_id: ${var.databricks_cluster_id}
+          python_wheel_task:
+            package_name: {{.project_name}}_whl
+            entry_point: example_output_uc
+            parameters: [
+              "--csv_path",
+              "${var.csv_weather_path}",
+              "--output_table",
+              "${var.output_table}"
+            ]
+          libraries:
+            - whl: ../dist/*.whl
+          {{if ne .distribution_list ""}}
+          email_notifications:
+            on_failure:
+              - {{.distribution_list}}
+            notification_settings:
+              no_alert_for_skipped_runs: true
+              no_alert_for_canceled_runs: true
+          {{end}}

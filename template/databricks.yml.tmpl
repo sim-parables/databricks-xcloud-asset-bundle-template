@@ -1,0 +1,98 @@
+# This is a Databricks asset bundle definition for {{.project_name}}.
+# https://docs.databricks.com/en/dev-tools/bundles/settings.html#bundle
+
+# These are the default bundle configuration if not otherwise overridden in
+# the "targets" top-level mapping.
+# See https://docs.databricks.com/dev-tools/bundles/index.html for documentation.
+bundle:
+  name: {{.project_name}}
+  compute_id: ${var.databricks_cluster_id}
+#  git:
+#    origin_url: string
+#    branch: string
+
+# These are the default workspace settings if not otherwise overridden in
+# the following "targets" top-level mapping.
+workspace:
+  host: {{workspace_host}}
+  root_path: /Users/${workspace.current_user.userName}/.bundle/${bundle.name}/envs/${bundle.target}
+  artifact_path: /Users/${workspace.current_user.userName}/.bundle/${bundle.name}/envs/${bundle.target}/artifacts
+  file_path: /Users/${workspace.current_user.userName}/.bundle/${bundle.name}/envs/${bundle.target}/files
+#   state_path: string
+#   auth_type: string
+#   azure_client_id: string # For Azure Databricks only.
+#   azure_environment: string # For Azure Databricks only.
+#   azure_login_app_id: string # For Azure Databricks only. Non-operational and reserved for future use.
+#   azure_tenant_id: string # For Azure Databricks only.
+#   azure_use_msi: true | false # For Azure Databricks only.
+#   azure_workspace_resource_id: string # For Azure Databricks only.
+#   client_id: string # For Databricks on AWS only.
+#   google_service_account: string # For Databricks on Google Cloud only.
+#   profile: string
+
+# These are for any custom variables for use throughout the bundle.
+variables:
+  databricks_cluster_id:
+    description: Databricks Cluster ID Variable
+  csv_holdings_path:
+    description: URL/UC Volume Path to Holidings Example CSV Data
+  csv_weather_path:
+    description: URL/UC Volume Path to Weather Example CSV Data
+  output_path:
+    description: Local/ Cloud Storage Path to Output Directory
+  output_table:
+    description: Delta/ UC Table Path to Output Table
+
+# These are any additional configuration files to include.
+include:
+  - resources/*.yml
+
+# These are the default artifact settings if not otherwise overridden in
+# the following "targets" top-level mapping.
+# artifacts:
+#  {{.project_name}}_pkg:
+#    type: string
+#     files:
+#       - source: string
+#    path: ../src/{{.project_name}}/distr/*.whl
+
+targets:
+  # The 'dev' target, used for development purposes.
+  # Whenever a developer deploys using 'dev', they get their own copy.
+  dev:
+    # We use 'mode: development' to make sure everything deployed to this target gets a prefix
+    # like '[dev my_user_name]'. Setting this mode also disables any schedules and
+    # automatic triggers for jobs and enables the 'development' mode for Delta Live Tables pipelines.
+    mode: development
+    default: true
+    workspace:
+      host: {{workspace_host}}
+
+  # The 'prod' target, used for production deployment.
+  prod:
+    # For production deployments, we only have a single copy, so we override the
+    # workspace.root_path default of
+    # /Users/${workspace.current_user.userName}/.bundle/${bundle.target}/${bundle.name}
+    # to a path that is not specific to the current user.
+    {{- /*
+    Explaining 'mode: production' isn't as pressing as explaining 'mode: development'.
+    As we already talked about the other mode above, users can just
+    look at documentation or ask the assistant about 'mode: production'.
+    #
+    # By making use of 'mode: production' we enable strict checks
+    # to make sure we have correctly configured this target.
+    */}}
+    mode: production
+    workspace:
+      host: {{workspace_host}}
+      root_path: /Shared/.bundle/prod/${bundle.name}
+      artifact_path: /Shared/.bundle/prod/${bundle.name}/artifacts
+      file_path: /Shared/.bundle/prod/${bundle.name}/files
+    
+    {{- if not is_service_principal}}
+    run_as:
+      # This runs as {{user_name}} in production. Alternatively,
+      # a service principal could be used here using service_principal_name
+      # (see Databricks documentation).
+      user_name: {{user_name}}
+    {{end -}}

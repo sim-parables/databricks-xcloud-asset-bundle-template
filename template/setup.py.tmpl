@@ -1,0 +1,61 @@
+"""
+This file configures the Python package with entrypoints used for future runs on Databricks.
+
+Please follow the `entry_points` documentation for more details on how to configure the entrypoint:
+* https://setuptools.pypa.io/en/latest/userguide/entry_point.html
+"""
+
+from setuptools import find_packages, setup
+
+PACKAGE_REQUIREMENTS = [
+    "pyyaml",
+    "adlfs==2022.11.2",
+    "fsspec==2022.11.0",
+    "gcsfs==2022.11.0",
+    "s3fs==2022.11.0",
+]
+
+# packages for local development and unit testing
+# please note that these packages are already available in DBR, there is no need to install them on DBR.
+LOCAL_REQUIREMENTS = [
+    "pyspark==3.5.1",
+    "delta-spark==3.1.0",
+    #"databricks-connect==14.3.1",
+    "scikit-learn",
+    "pandas",
+    "mlflow",
+    "aws_secretsmanager_caching==1.1.2",
+    "azure-keyvault-secrets==4.8.0",
+    "azure-identity==1.15.0",
+    "boto3==1.26.90",
+    "botocore==1.27.59",
+    "google-cloud-secret-manager==2.16.4"
+]
+
+TEST_REQUIREMENTS = [
+    # development & testing tools
+    "pytest",
+    "coverage[toml]",
+    "pytest-cov",
+    "pytest-json-report",
+    "duckdb"
+]
+
+setup(
+    name="{{.project_name}}_whl",
+    #packages=find_packages(exclude=["tests", "tests.*"]),
+    packages=find_packages(),
+    #package_dir={'': '{{.project_name}}'},
+    setup_requires=["setuptools","wheel"],
+    install_requires=PACKAGE_REQUIREMENTS + TEST_REQUIREMENTS,
+    extras_require={"local": LOCAL_REQUIREMENTS, "test": TEST_REQUIREMENTS},
+    entry_points = {
+        "console_scripts": [
+            "test_suit = tests.entrypoint:entrypoint",
+            "example_output = {{.project_name}}.tasks.output.example_output:entrypoint",
+            "example_output_uc = {{.project_name}}.tasks.output.example_output_uc:entrypoint",
+    ]},
+    version="0.0.1",
+    description="Sim Parables Databricks Asset Bundle Template",
+    author="sim-parables",
+)

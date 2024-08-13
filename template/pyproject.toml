@@ -1,0 +1,12 @@
+[tool.pytest.ini_options]
+markers = [
+    "examples: DAB Example Test Suit Marker",
+    "local: Local Enviromentt Test Marker",
+    "databricks: Databricks Environment Test Marker",
+    "duckdb: DuckDB Evaluation Test Marker for quicker run",
+    "spark: Spark Evaluation Test Marker",
+    "output: Output Task Marker",
+    "azure: Azure Cloud Marker",
+    "aws: AWS Cloud Marker",
+    "gcp: GCP Cloud Marker"
+]

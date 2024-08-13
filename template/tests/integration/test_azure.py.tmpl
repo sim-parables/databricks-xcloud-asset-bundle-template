@@ -1,0 +1,37 @@
+import logging
+import pytest
+import os
+
+
+@pytest.mark.azure
+def test_keyvault():
+    """
+    Test Azure Key Vault Credentials
+
+    Verify Azure credentials can be received from Key Vault successfully.
+    """
+    from {{.project_name}}.common import spark_credentials
+
+    client_id, client_secret = spark_credentials.get_credentials_azure()
+
+    assert not client_id is None
+    assert not client_secret is None
+
+@pytest.mark.azure
+@pytest.mark.spark
+@pytest.mark.usefixtures('spark')
+def test_azure_spark_credentials(spark):
+    """
+    Test Spark's Azure Credentials
+
+    Verify Azure credentials can be properly configured in Spark Configuration. This test should be
+    ommitted from testing in Databricks as the Spark Configuration won't be accessible.
+    """
+    from {{.project_name}}.common import spark_credentials
+
+    key_name='fs.azure.account.oauth2.client.id'
+    secret_name='fs.azure.account.oauth2.client.secret'
+    client_id, client_secret = spark_credentials.get_credentials_spark_config(spark, key_name, secret_name)
+
+    assert not client_id is None
+    assert not client_secret is None

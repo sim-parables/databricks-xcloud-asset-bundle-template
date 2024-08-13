@@ -1,0 +1,24 @@
+import logging
+import pytest
+import os
+
+logger = logging.getLogger(f'py4j.{__name__}')
+
+@pytest.mark.output
+@pytest.mark.usefixtures('spark')
+def test_output(spark):
+    """
+    Test case output integration.
+
+    Verify both the extraction and transformations are operating as expected.
+
+    Raises:
+    - AssertionError: If the DataFrame count is not greater than 0.
+    """
+    from {{.project_name}}.tasks.output import example_output
+
+    example_output._extract(spark)
+    example_output._transform(spark)
+
+    df = spark.table('output__example')
+    assert df.count() > 0

@@ -1,0 +1,110 @@
+""" Output ETL Pipeline | Example
+
+Write example Weather data to Cloud Storage outside Unity Catalog
+
+"""
+
+from {{.project_name}}.common.spark_config import SparkConfig
+from pyspark.sql import types
+from pyspark import SparkFiles
+
+import argparse
+import logging
+import os
+
+logger = logging.getLogger(f'py4j.{__name__}')
+
+def _parse_args():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--csv_path', help="CSV Path", type= str, default='https://duckdb.org/data/weather.csv')
+    parser.add_argument('--output_path', help="Cloud Storage Path", type= str)
+    return parser.parse_known_args()
+
+
+def _extract(sc):
+    """
+    Weather Pattern CSV Data Extract
+
+    Read/Extract the contents of the Weather CSV and
+    add hard coded header missing.
+
+    Example data should be located in UC Volume.
+
+    Parameters:
+    - sc (SparkContext): The SparkContext object.
+    """
+    logger.info(f'ETL Pipeline | Extract | Weather Example')
+    args, unknown_args = _parse_args()
+
+    if 'http' in args.csv_path:
+        sc.sparkContext.addFile(args.csv_path)
+        args.csv_path = f'file://{SparkFiles.get(os.path.split(args.csv_path)[-1])}'
+        
+    schema = types.StructType([
+        types.StructField('city', types.StringType(), True),
+        types.StructField('temp_low', types.IntegerType(), True),
+        types.StructField('temp_high', types.IntegerType(), True),
+        types.StructField('precipitation', types.DecimalType(), True),
+        types.StructField('date', types.DateType(), True),
+    ])
+    df = sc.read.format('csv').load(args.csv_path, header=False, schema=schema)
+    df.createOrReplaceTempView('data')
+    
+
+def _transform(sc, view_name='output__example'):
+    """
+    Weather Pattern Data Transformation
+
+    Summarize the weather data to read total precipitation by city.
+
+    Parameters:
+    - sc (SparkContext): The SparkContext object.
+    - view_name (str): The name of the output table view to create in Spark.
+    """
+    logger.info(f'ETL Pipeline | Transform | Weather Example')
+    
+    rs = sc.sql("""
+        SELECT city, SUM(precipitation) total_precipitation
+        FROM data
+        GROUP BY city;
+    """)
+
+    rs.createOrReplaceTempView(view_name)
+
+def _load(sc, view_name='output__example'):
+    """
+
+    Weather Pattern Data Load
+
+    Write the summarized weather data of interest into output landing zone.
+
+    Parameters:
+    - sc (SparkContext): The SparkContext object.
+    - view_name (str): The name of the output table view in Spark.
+    """
+    logger.info(f'ETL Pipeline | Load | Weather Example')
+    args, unknown_args = _parse_args()
+    
+    df = sc.table(view_name)
+    df.write \
+        .format('delta') \
+        .mode('overwrite') \
+        .save(os.path.join(args.output_path, view_name))
+
+def entrypoint():
+    """
+    Entry point for the ETL pipeline.
+
+    This function serves as the entry point for the ETL (Extract, Transform, Load) pipeline.
+    It initializes a SparkContext using the configured SparkConfig, performs extraction,
+    transformation, and loading stages of the pipeline, and manages the overall execution flow.
+    """
+    sc = SparkConfig(app_name='example_weather') \
+        .get_sparkContext()
+    
+    _extract(sc)
+    _transform(sc)
+    _load(sc)
+
+if __name__ == '__main__':
+    entrypoint()

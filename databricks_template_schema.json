@@ -1,0 +1,39 @@
+{
+  "properties": {
+    "project_name": {
+      "type": "string",
+      "default": "sim-parables-databricks",
+      "description": "Project Name. Must be lower case without spaces.",
+      "order": 1
+    },
+    "distribution_list": {
+      "type": "string",
+      "description": "Error notification Email Address",
+      "order": 3
+    },
+    "databricks_cli_profile": {
+      "type": "string",
+      "default": "AZURE_WORKSPACE",
+      "description": "Databricks CLI Profile Name to authenticate with Databricks Connect Remote Session",
+      "order": 4
+    },
+    "databricks_cloud_provider": {
+      "type": "string",
+      "default": "LOCAL",
+      "description": "Cloud Provider which Databricks Service is Deployed on",
+      "order": 5
+    },
+    "databricks_service_account_key_name": {
+      "type": "string",
+      "default": "databricks-sa-key-name",
+      "description": "Databricks Service Account Client ID Secret Name. Can be associated with Databricks Secrets/ AWS Secrets Manager/ Azure Key Vault/ etc",
+      "order": 6
+    },
+    "databricks_service_account_key_secret": {
+      "type": "string",
+      "default": "databricks-sa-key-secret",
+      "description": "Databricks Service Account Client Secret Secret Name. Can be associated with Databricks Secrets/ AWS Secrets Manager/ Azure Key Vault/ etc",
+      "order": 7
+    }
+  }
+}

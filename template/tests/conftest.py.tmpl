@@ -1,0 +1,203 @@
+from {{.project_name}}.common.spark_credentials import get_credentials, get_credentials_spark_config
+from {{.project_name}}.common.spark_config import SparkConfig
+from pyspark.sql import SparkSession
+from dataclasses import dataclass
+from unittest.mock import patch
+from fsspec import filesystem
+from typing import Iterator
+from pathlib import Path
+
+import duckdb
+import tempfile
+import logging
+import shutil
+import pytest
+import json
+import sys
+import os
+import re
+
+def is_debugging():
+    return 'debugpy' in sys.modules
+    
+# enable stop_on_exception is the debugger is running during a test
+if is_debugging():
+    @pytest.hookimpl(tryfirst=True)
+    def pytest_exception_interact(call):
+        raise call.excinfo.value
+    
+    @pytest.hookimpl(tryfirst=True)
+    def pytest_internalerror(excinfo):
+        raise excinfo.value
+
+def pytest_addoption(parser):
+    for a in ['csv_path', 'output_path', 'output_table', 'test_entrypoint', 'test_path']:
+        parser.addoption(f'--{a}', action='append', default=None)
+
+@pytest.fixture(scope='session')
+def spark() -> SparkSession:
+    """
+    Fixture providing a preconfigured SparkSession with Cloud Provider Support.
+
+    Returns:
+    - SparkSession: A preconfigured SparkSession object.
+    """
+    logging.info('Configuring Spark Session for Testing Environment')
+    spark = SparkConfig(app_name='spark-solution-unit-test') \
+        .get_sparkContext()
+    
+    logging.info('Spark Session Configured')
+    yield spark
+
+    logging.info('Shutting Down Spark Session')
+    #spark.stop()
+
+@pytest.fixture(scope='session')
+def spark_delta() -> SparkSession:
+    """
+    Fixture providing a preconfigured SparkSession with Hive and Delta support.
+    After the test session, the temporary warehouse directory is deleted.
+
+    Returns:
+    - SparkSession: A preconfigured SparkSession object.
+    """
+    logging.info('Configuring Spark Session for Testing Environment')
+    warehouse_dir = tempfile.TemporaryDirectory().name
+    spark = SparkConfig(app_name='spark-solution-unit-test', warehouse_dir=warehouse_dir) \
+        .get_sparkContext()
+
+    logging.info('Spark Session Configured')
+    yield spark
+
+    logging.info('Shutting Down Spark Session')
+    #spark.stop()
+
+    if Path(warehouse_dir).exists():
+        shutil.rmtree(warehouse_dir)
+
+def _duckdb_azure_session(client_id, client_secret):
+    AZURE_TENANT_ID = os.getenv('AZURE_TENANT_ID', None)
+    INPUT_DIR = os.getenv('INPUT_DIR', None)
+    OUTPUT_DIR = os.getenv('OUTPUT_DIR', None)
+    assert(not AZURE_TENANT_ID is None)
+    assert(not INPUT_DIR is None or not OUTPUT_DIR is None)
+
+    duckdb_session = duckdb.connect()
+    duckdb_session.execute("""
+        INSTALL azure;
+        LOAD azure;
+    """)
+
+    storage_accounts = re.findall(r'(?<=\@)([A-Za-z]+)(?=\.)', f'{INPUT_DIR},{OUTPUT_DIR}')
+    for sa in storage_accounts:
+        duckdb_session.register_filesystem(
+            filesystem(
+                'abfs', 
+                account_name=sa,
+                tenant_id=AZURE_TENANT_ID, 
+                client_id=client_id, 
+                client_secret=client_secret
+            )
+        )
+
+    return duckdb_session
+
+def _duckdb_aws_session(client_id, client_secret):
+    duckdb_session = duckdb.connect()
+    duckdb_session.execute("""
+        INSTALL httpfs;
+        LOAD httpfs;
+    """)
+
+    duckdb_session.register_filesystem(
+        filesystem(
+            's3',
+            key=client_id,
+            secret=client_secret
+        )
+    )
+
+    return duckdb_session
+
+def _duckdb_gcp_session(client_id, client_secret):
+    duckdb_session = duckdb.connect()
+    duckdb_session.execute("""
+        INSTALL httpfs;
+        LOAD httpfs;
+    """)
+
+    duckdb_session.register_filesystem(
+        filesystem(
+            'gcs',
+            gcs=client_id,
+            token=json.loads(client_secret)
+        )
+    )
+
+    return duckdb_session
+
+@pytest.fixture(scope='session')
+def duckdb_session() -> duckdb.DuckDBPyConnection:
+    CLOUD_PROVIDER=os.getenv('CLOUD_PROVIDER', 'LOCAL')
+    client_id, client_secret = get_credentials()
+    if CLOUD_PROVIDER == 'AZURE':
+        duckdb_session = _duckdb_azure_session(client_id, client_secret)
+    elif CLOUD_PROVIDER == 'AWS':
+        duckdb_session = _duckdb_aws_session(client_id, client_secret)
+    elif CLOUD_PROVIDER == 'GCP':
+        duckdb_session = _duckdb_gcp_session(client_id, client_secret)
+    else:
+        duckdb_session = duckdb.connect()
+    
+    yield duckdb_session
+
+@pytest.fixture(scope='session')
+@pytest.mark.usefixtures('spark')
+def duckdb_spark_session(spark) -> duckdb.DuckDBPyConnection:
+    CLOUD_PROVIDER=os.getenv('CLOUD_PROVIDER', 'LOCAL')
+    if CLOUD_PROVIDER == 'AZURE':
+        client_id, client_secret = get_credentials_spark_config(
+            spark,
+            key_name='fs.azure.account.oauth2.client.id',
+            secret_name='fs.azure.account.oauth2.client.secret')
+        
+        duckdb_session = _duckdb_azure_session(client_id, client_secret)
+    elif CLOUD_PROVIDER == 'AWS':
+        client_id, client_secret = get_credentials_spark_config(
+            spark,
+            key_name='spark.hadoop.fs.s3a.access.key',
+            secret_name='spark.hadoop.fs.s3a.secret.key')
+        duckdb_session = _duckdb_aws_session(client_id, client_secret)
+    elif CLOUD_PROVIDER == 'GCP':
+        client_id, client_secret = get_credentials_spark_config(
+            spark,
+            key_name='google.cloud.auth.service.account.private.key.id',
+            secret_name='google.cloud.auth.service.account.private.key')
+        duckdb_session = _duckdb_gcp_session(client_id, client_secret)
+    else:
+        duckdb_session = duckdb.connect()
+    
+    yield duckdb_session
+
+@pytest.fixture(scope='session')
+@pytest.mark.usefixtures('spark')
+def duckdb_databricks_session() -> duckdb.DuckDBPyConnection:
+    from pyspark.dbutils import DBUtils
+    dbutils = DBUtils(spark)
+    CLOUD_PROVIDER=os.getenv('CLOUD_PROVIDER')
+    SERVICE_ACCOUNT_KEY_NAME = os.getenv('SERVICE_ACCOUNT_KEY_NAME', 'databricks-sa-key-name')
+    SERVICE_ACCOUNT_KEY_SECRET = os.getenv('SERVICE_ACCOUNT_KEY_SECRET', 'databricks-sa-key-secret')
+
+    client_id = dbutils.secrets.get(scope=CLOUD_PROVIDER, key=SERVICE_ACCOUNT_KEY_NAME)
+    client_secret = dbutils.secrets.get(scope=CLOUD_PROVIDER, key=SERVICE_ACCOUNT_KEY_SECRET)
+
+    if CLOUD_PROVIDER == 'AZURE':
+        duckdb_session = _duckdb_azure_session(client_id, client_secret)
+    elif CLOUD_PROVIDER == 'AWS':
+        duckdb_session = _duckdb_aws_session(client_id, client_secret)
+    elif CLOUD_PROVIDER == 'GCP':
+        duckdb_session = _duckdb_gcp_session(client_id, client_secret)
+    else:
+        duckdb_session = duckdb.connect()
+    
+    yield duckdb_session
