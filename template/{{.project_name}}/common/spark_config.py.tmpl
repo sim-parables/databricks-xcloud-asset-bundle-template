@@ -101,7 +101,7 @@ class SparkConfig():
                 return sc
         except Py4JJavaError:
             logger.info('Configuring Spark Session GCP Properties')
-            sa_id, sa_secret =  creds.get_credentials(sc)
+            sa_id, sa_secret =  creds.get_credentials()
             secret_json = json.loads(sa_secret)
             sc.conf.set('fs.gs.auth.type', 'USER_CREDENTIALS')
             sc.conf.set('fs.gs.impl', 'com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystem')
@@ -133,7 +133,7 @@ class SparkConfig():
                 return sc
         except Py4JJavaError:
             logger.info('Configuring Spark Session AWS Properties')
-            sp_id, sp_secret = creds.get_credentials(sc)
+            sp_id, sp_secret = creds.get_credentials()
             sc.conf.set('spark.hadoop.fs.s3a.access.key', sp_id)
             sc.conf.set('spark.hadoop.fs.s3a.secret.key', sp_secret)
             sc.conf.set('spark.hadoop.fs.s3a.aws.credentials.provider', 'org.apache.hadoop.fs.s3a.BasicAWSCredentialsProvider')
