@@ -1,7 +1,6 @@
 # Sim-Parables Databricks Asset Bundle Template
 
-It's preferable to test Databricks on Azure given the fact workspace uptime has no cost
-vs GCP/AWS which doesn't operate as a Service.    
+It's preferable to test Databricks on Azure given the reduced time to cluster creation/ SQL Table & Warehouse creation vs GCP/AWS.    
 
 ## Setup
 
