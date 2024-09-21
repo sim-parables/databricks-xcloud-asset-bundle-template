@@ -120,6 +120,15 @@ def _duckdb_aws_session(client_id, client_secret):
     return duckdb_session
 
 def _duckdb_gcp_session(client_id, client_secret):
+    from google.oauth2 import service_account
+
+    client_secret_json = json.loads(client_secret)
+    client_secret_json['auth_uri'] = "https://accounts.google.com/o/oauth2/auth"
+    client_secret_json['token_uri'] = "https://oauth2.googleapis.com/token"
+    client_secret_json['auth_provider_x509_cert_url'] = "https://www.googleapis.com/oauth2/v1/certs"
+
+    credentials = service_account.Credentials.from_service_account_info(client_secret_json)
+
     duckdb_session = duckdb.connect()
     duckdb_session.execute("""
         INSTALL httpfs;
@@ -130,7 +139,7 @@ def _duckdb_gcp_session(client_id, client_secret):
         filesystem(
             'gcs',
             gcs=client_id,
-            token=json.loads(client_secret)
+            credentials=credentials
         )
     )
 
