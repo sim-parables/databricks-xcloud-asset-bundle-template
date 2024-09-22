@@ -28,9 +28,6 @@ resources:
           email_notifications:
             on_failure:
               - {{.distribution_list}}
-            notification_settings:
-              no_alert_for_skipped_runs: true
-              no_alert_for_canceled_runs: true
           {{end}}
     
     {{.project_name}}_example_integration_test:
@@ -55,9 +52,6 @@ resources:
           email_notifications:
             on_failure:
               - {{.distribution_list}}
-            notification_settings:
-              no_alert_for_skipped_runs: true
-              no_alert_for_canceled_runs: true
           {{end}}
         
     {{.project_name}}_example_output:
@@ -80,9 +74,6 @@ resources:
           email_notifications:
             on_failure:
               - {{.distribution_list}}
-            notification_settings:
-              no_alert_for_skipped_runs: true
-              no_alert_for_canceled_runs: true
           {{end}}
     
     {{.project_name}}_example_output_uc:
@@ -105,7 +96,4 @@ resources:
           email_notifications:
             on_failure:
               - {{.distribution_list}}
-            notification_settings:
-              no_alert_for_skipped_runs: true
-              no_alert_for_canceled_runs: true
           {{end}}
